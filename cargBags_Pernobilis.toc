@@ -1,0 +1,10 @@
+## Interface: 30100
+## Title: cargBags_Pernobilis
+## Author: Cargor
+## Version: 1.0.1
+## X-eMail: xconstruct@gmail.com
+## Notes: Layout for cargBags
+## RequiredDeps: cargBags
+## OptionalDeps: cargBags_Anywhere
+
+layout.lua

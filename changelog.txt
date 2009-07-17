@@ -1,0 +1,45 @@
+cargBags_Pernobilis Changelog
+
+1.0
+- major rewrite to follow 1.0 core
+
+0.4.4
+- fixed frame height not updating when bags are hidden
+- OpenAllBags() now toggles cargBags instead of only opening
+
+0.4.3
+- added UpdateButtonPositions (following 0.4.3 core changes)
+- removed self.Container ("self" now contains the item buttons)
+- added background as a separate frame
+
+0.4.2
+- now also hooks ToggleBag()
+- added SetScale(1) on other bag objects for reference
+
+0.4.1
+- CloseCargBags() hides also the bank object
+
+0.4-1
+- Bag-togglebutton is really in the center between space- and moneyinfo's
+
+0.4
+- follows 0.4 core changes
+
+0.3.3-2
+- default layout is now Pernobilis instead of Peratus
+- 8-slot bar removed
+- movable while dragging and holding Alt-key
+
+0.3.3-1
+- changed frameStrata from "DIALOG" to "HIGH" (split box was behind frame)
+
+0.3.3
+- 'updateSpace()' changed to reflect core changes
+- 'object.space.countAll = true' set
+
+0.3.2-1
+- overwrites Blizzard function 'OpenAllBags()'
+- comments hopefully made clearer 
+
+0.3.2
+- initial release.
