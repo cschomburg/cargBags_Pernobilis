@@ -1,3 +1,18 @@
+--[[
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                    Version 2, December 2004
+
+ Copyright (C) 2009 Constantin Schomburg
+ Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document, and changing it is allowed as long
+ as the name is changed.
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.
+]]
+
 -- This function is only used inside the layout, so the cargBags-core doesn't care about it
 -- It creates the border for glowing process in UpdateButton()
 local createGlow = function(button)
@@ -109,7 +124,7 @@ local UpdateDimensions = function(self)
 end
 
 -- Style of the bag and its contents
-local func = function(settings, self, type)
+local func = function(settings, self)
 	self:EnableMouse(true)
 
 	self.UpdateDimensions = UpdateDimensions
@@ -123,7 +138,7 @@ local func = function(settings, self, type)
 	tinsert(UISpecialFrames, self:GetName()) -- Close on "Esc"
 
 	-- Make main frames movable
-	if(self.Name == "cb_main" or self.Name == "cb_bank") then
+	if(self.Name == "cBags_Main" or self.Name == "cBags_Bank") then
 		self:SetMovable(true)
 		self:RegisterForClicks("LeftButton", "RightButton");
 	    self:SetScript("OnMouseDown", function() 
@@ -135,10 +150,10 @@ local func = function(settings, self, type)
 	    self:SetScript("OnMouseUp",  self.StopMovingOrSizing)
 	end
 
-	if(self.Name == "cb_keyring") then
+	if(self.Name == "cBags_Keyring") then
 		self.Columns = 2 -- 2 item button columns for the key ring
 		self:SetScale(0.8)	-- Make key ring a bit smaller
-	elseif(self.Name == "cb_bank") then
+	elseif(self.Name == "cBags_Bank") then
 		self.Columns = 12 -- 12 columns for the bank as you can see
 		self:SetScale(1)	-- Scale of the bank frame
 	else
@@ -150,7 +165,7 @@ local func = function(settings, self, type)
 	self:UpdateDimensions()
 	self:SetWidth(38*self.Columns)	-- Set the frame's width based on the columns
 
-	if(self.Name == "cb_main" or self.Name == "cb_bank") then
+	if(self.Name == "cBags_Main" or self.Name == "cBags_Bank") then
 
 		-- Caption and close button
 		local caption = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -172,30 +187,31 @@ local func = function(settings, self, type)
 		end
 
 		-- The font string for bag space display
+		local bagType
+		if(self.Name == "cBags_Main") then
+			bagType = "bags"	-- We want to add all bags to our bag button bar
+		else
+			bagType = "bank"	-- the bank gets bank bags, of course
+		end
 		-- You can see, it works with tags, - [free], [max], [used] are currently supported
-		local space = self:SpawnPlugin("Space", "[free] / [max] free")
+		local space = self:SpawnPlugin("Space", "[free] / [max] free", bagType)
 		if(space) then
 			space:SetPoint("BOTTOMLEFT", self, 0, 0)
 			space:SetJustifyH"LEFT"
 		end
 
 		-- The button for viewing other characters' bags
-		if(name == "cBags_Main") then
+		if(self.Name == "cBags_Main") then
 			local anywhere = self:SpawnPlugin("Anywhere")
 			if(anywhere) then
 				anywhere:SetPoint("TOPRIGHT", -19, 4)
 				anywhere:GetNormalTexture():SetDesaturated(1)
-
-				-- If Anywhere exists, we place a button for toggling the bank
-				local bankToggle = createSmallButton("B", self, "BOTTOMLEFT", 99, 0)
-				bankToggle:SetScript("OnClick", function(self) ToggleFrame(cBags_Bank) end)
-				bankToggle.Tip = "Toggle bank frame"
 			end
 		end
 
 		 -- A nice bag bar for changing/toggling bags
 		local bagType
-		if(self.Name == "cb_main") then
+		if(self.Name == "cBags_Main") then
 			bagType = "bags"	-- We want to add all bags to our bag button bar
 		else
 			bagType = "bank"	-- the bank gets bank bags, of course
@@ -206,20 +222,20 @@ local func = function(settings, self, type)
 			bagButtons:Hide()
 
 			-- main window gets a fake bag button for toggling key ring
-			if(self.Name == "cb_main") then
+			if(self.Name == "cBags_Main") then
 				local keytoggle = bagButtons:CreateKeyRingButton()
 				keytoggle:SetScript("OnClick", function()
-					if(cb_keyring:IsShown()) then
-						cb_keyring:Hide()
+					if(cBags_Keyring:IsShown()) then
+						cBags_Keyring:Hide()
 						keytoggle:SetChecked(0)
 					else
-						cb_keyring:Show()
+						cBags_Keyring:Show()
 						keytoggle:SetChecked(1)
 					end
 				end)
 			end
 		end
-		
+
 		-- A little fix that positions the bagToggle between space and money
 		local spacer = CreateFrame("Frame", nil, self)
 		spacer:SetPoint("BOTTOMLEFT", space, "BOTTOMRIGHT", 0, 0)
@@ -248,7 +264,7 @@ local func = function(settings, self, type)
 	end
 
 	-- For purchasing bank slots
-	if(self.Name == "cb_bank") then
+	if(self.Name == "cBags_Bank") then
 		local purchase = self:SpawnPlugin("Purchase")
 		if(purchase) then
 			purchase:SetText(BANKSLOTPURCHASE)
@@ -264,14 +280,15 @@ local func = function(settings, self, type)
 	-- And the frame background!
 	local background = CreateFrame("Frame", nil, self)
 	background:SetBackdrop{
-		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+		bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
 		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
 		tile = true, tileSize = 16, edgeSize = 16,
 		insets = {left = 4, right = 4, top = 4, bottom = 4},
 	}
-	background:SetFrameStrata("BACKGROUND")
-	background:SetBackdropColor(0, 0, 0, 1)
-	background:SetBackdropBorderColor(0, 0, 0, 0.5)
+	background:SetFrameStrata("HIGH")
+	background:SetFrameLevel(1)
+	background:SetBackdropColor(0, 0, 0,   0.8)
+	background:SetBackdropBorderColor(0, 0, 0,   0.5)
 
 	background:SetPoint("TOPLEFT", -6, 6)
 	background:SetPoint("BOTTOMRIGHT", 6, -6)
@@ -300,18 +317,18 @@ local hideEmpty = function(item) return item.texture ~= nil end
 --  object:SetFilter ( filterFunc, enabled ) adds a filter or disables one
 
 -- Bagpack and bags
-local main 	= cargBags:Spawn("cb_main")
+local main 	= cargBags:Spawn("cBags_Main")
 	main:SetFilter(onlyBags, true)
 	main:SetPoint("RIGHT", -5, 0)
 
 -- Keyring
-local key = cargBags:Spawn("cb_keyring", main)
+local key = cargBags:Spawn("cBags_Keyring", main)
 	key:SetFilter(onlyKeyring, true)
 	key:SetFilter(hideEmpty, true)
 	key:SetPoint("TOPRIGHT", main, "TOPLEFT", -10, 0)
 
 -- Bank frame and bank bags
-local bank = cargBags:Spawn("cb_bank")
+local bank = cargBags:Spawn("cBags_Bank")
 	bank:SetFilter(onlyBank, true)
 	bank:SetPoint("LEFT", 5, 0)
 

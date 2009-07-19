@@ -1,4 +1,8 @@
-cargBags_Pernobilis Changelog
+cargBags_Pernobilis Changelog#
+1.1
+- included Anywhere support
+- fixed errors with 1.3 core
+- new opaque background texture
 
 1.0
 - major rewrite to follow 1.0 core
