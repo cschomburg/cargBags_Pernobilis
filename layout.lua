@@ -13,81 +13,7 @@
   0. You just DO WHAT THE FUCK YOU WANT TO.
 ]]
 
--- This function is only used inside the layout, so the cargBags-core doesn't care about it
--- It creates the border for glowing process in UpdateButton()
-local createGlow = function(button)
-	local glow = button:CreateTexture(nil, "OVERLAY")
-	glow:SetTexture"Interface\\Buttons\\UI-ActionButton-Border"
-	glow:SetBlendMode"ADD"
-	glow:SetAlpha(.8)
-	glow:SetWidth(70)
-	glow:SetHeight(70)
-	glow:SetPoint("CENTER", button)
-	button.Glow = glow
-end
-
--- The main function for updating an item button,
--- the item-table holds all data known about the item the button is holding, e.g.
---   bagID, slotID, texture, count, locked, quality - from GetContainerItemInfo()
---   link - well, from GetContainerItemLink() ofcourse ;)
---   name, link, rarity, level, minLevel, type, subType, stackCount, equipLoc - from GetItemInfo()
--- if you need cooldown item data, use self:RequestCooldownData()
-local UpdateButton = function(self, button, item)
-	button.Icon:SetTexture(item.texture)
-	SetItemButtonCount(button, item.count)
-	SetItemButtonDesaturated(button, item.locked, 0.5, 0.5, 0.5)
-
-	-- Color the button's border based on the item's rarity / quality!
-	if(item.rarity and item.rarity > 1) then
-		if(not button.Glow) then createGlow(button) end
-		button.Glow:SetVertexColor(GetItemQualityColor(item.rarity))
-		button.Glow:Show()
-	else
-		if(button.Glow) then button.Glow:Hide() end
-	end
-end
-
--- Updates if the item is locked (currently moved by user)
---   bagID, slotID, texture, count, locked, quality - from GetContainerItemInfo()
--- if you need all item data, use self:RequestItemData()
-local UpdateButtonLock = function(self, button, item)
-	SetItemButtonDesaturated(button, item.locked, 0.5, 0.5, 0.5)
-end
-
--- Updates the item's cooldown
---   cdStart, cdFinish, cdEnable - from GetContainerItemCooldown()
--- if you need all item data, use self:RequestItemData()
-local UpdateButtonCooldown = function(self, button, item)
-	if(button.Cooldown) then
-		CooldownFrame_SetTimer(button.Cooldown, item.cdStart, item.cdFinish, item.cdEnable) 
-	end
-end
-
--- The function for positioning the item buttons in the bag object
-local UpdateButtonPositions = function(self)
-	local button
-	local col, row = 0, 0
-	for i, button in self:IterateButtons() do
-		button:ClearAllPoints()
-
-		local xPos = col * 38
-		local yPos = -1 * row * 38
-		if(self.Caption) then yPos = yPos - 20 end	-- Spacing for the caption
-
-		button:SetPoint("TOPLEFT", self, "TOPLEFT", xPos, yPos)	 
-		if(col >= self.Columns-1) then	 
-			col = 0	 
-			row = row + 1	 
-		else	 
-			col = col + 1	 
-		end
-	end
-
-	-- This variable stores the size of the item button container
-	self.ContainerHeight = (row + (col>0 and 1 or 0)) * 38
-
-	if(self.UpdateDimensions) then self:UpdateDimensions() end -- Update the bag's height
-end
+local key
 
 -- Function is called after a button was added to an object
 -- We color the borders of the button to see if it is an ammo bag or else
@@ -108,7 +34,11 @@ local PostAddButton = function(self, button)
 end
 
 -- More slot buttons -> more space!
-local UpdateDimensions = function(self)
+local UpdateDimensions = function(self, containerHeight)
+	if(containerHeight) then
+		self.ContainerHeight = containerHeight
+	end
+
 	local height = 0			-- Normal margin space
 	if(self.BagBar and self.BagBar:IsShown()) then
 		height = height + 43				-- Bag button space
@@ -123,22 +53,21 @@ local UpdateDimensions = function(self)
 	self:SetHeight(self.ContainerHeight + height)
 end
 
--- Style of the bag and its contents
-local func = function(settings, self)
+-- Register the layout with cargBags
+-- The 'settings'-table is just something which is passed from
+-- the Spawn()-functions below, it is completely optional to use
+cargBags:RegisterStyle("Pernobilis", function(self, settings)
 	self:EnableMouse(true)
+	self:Hide()
 
 	self.UpdateDimensions = UpdateDimensions
-	self.UpdateButtonPositions = UpdateButtonPositions
-	self.UpdateButton = UpdateButton
-	self.UpdateButtonLock = UpdateButtonLock
-	self.UpdateButtonCooldown = UpdateButtonCooldown
 	self.PostAddButton = PostAddButton
-	
+
+	if(settings.Parent) then self:SetParent(settings.Parent) end
 	self:SetFrameStrata("HIGH")
-	tinsert(UISpecialFrames, self:GetName()) -- Close on "Esc"
 
 	-- Make main frames movable
-	if(self.Name == "cBags_Main" or self.Name == "cBags_Bank") then
+	if(settings.Movable) then
 		self:SetMovable(true)
 		self:RegisterForClicks("LeftButton", "RightButton");
 	    self:SetScript("OnMouseDown", function() 
@@ -150,35 +79,27 @@ local func = function(settings, self)
 	    self:SetScript("OnMouseUp",  self.StopMovingOrSizing)
 	end
 
-	if(self.Name == "cBags_Keyring") then
-		self.Columns = 2 -- 2 item button columns for the key ring
-		self:SetScale(0.8)	-- Make key ring a bit smaller
-	elseif(self.Name == "cBags_Bank") then
-		self.Columns = 12 -- 12 columns for the bank as you can see
-		self:SetScale(1)	-- Scale of the bank frame
-	else
-		self.Columns = 8
-		self:SetScale(1)	-- Scale of the main bag frame
-	end
+	self.Columns = settings.Columns or 8
+	self:SetScale(settings.Scale or 1)
 
 	self.ContainerHeight = 0
 	self:UpdateDimensions()
 	self:SetWidth(38*self.Columns)	-- Set the frame's width based on the columns
 
-	if(self.Name == "cBags_Main" or self.Name == "cBags_Bank") then
-
-		-- Caption and close button
+	-- Caption and close button
+	if(settings.Caption) then
 		local caption = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		if(caption) then
-			local name = self.Name == "cb_bank" and "Bank" or "Inventory"
-			caption:SetText(UnitName("player").."'s "..name)
-			caption:SetPoint("TOPLEFT", 0, 0)
-			self.Caption = caption
+		caption:SetFormattedText(settings.Caption, UnitName("player"))
+		caption:SetPoint("TOPLEFT", 0, 0)
+		self.Caption = caption
+		self.yOffset = -20
 
-			local close = CreateFrame("Button", nil, self, "UIPanelCloseButton")
-			close:SetPoint("TOPRIGHT", 5, 8)
-			close:SetScript("OnClick", function(self) self:GetParent():Hide() end)
-		end
+		local close = CreateFrame("Button", nil, self, "UIPanelCloseButton")
+		close:SetPoint("TOPRIGHT", 5, 8)
+		close:SetScript("OnClick", function() self:Hide() end)
+	end
+
+	if(settings.StatusBar) then
 
 		-- The frame for money display
 		local money = self:SpawnPlugin("Money")
@@ -188,8 +109,8 @@ local func = function(settings, self)
 
 		-- The font string for bag space display
 		local bagType
-		if(self.Name == "cBags_Main") then
-			bagType = "bags"	-- We want to add all bags to our bag button bar
+		if(self.Type ~= "bank") then
+			bagType = "bags"	-- We want to add all bags to our space indicator
 		else
 			bagType = "bank"	-- the bank gets bank bags, of course
 		end
@@ -201,7 +122,7 @@ local func = function(settings, self)
 		end
 
 		-- The button for viewing other characters' bags
-		if(self.Name == "cBags_Main") then
+		if(self.Type == "main") then
 			local anywhere = self:SpawnPlugin("Anywhere")
 			if(anywhere) then
 				anywhere:SetPoint("TOPRIGHT", -19, 4)
@@ -211,10 +132,10 @@ local func = function(settings, self)
 
 		 -- A nice bag bar for changing/toggling bags
 		local bagType
-		if(self.Name == "cBags_Main") then
-			bagType = "bags"	-- We want to add all bags to our bag button bar
+		if(self.Type == "bank") then
+			bagType = "bank"	-- We want to add all bank slots to our bag button bar
 		else
-			bagType = "bank"	-- the bank gets bank bags, of course
+			bagType = "bags"	-- the main object gets normal bags, of course
 		end
 		local bagButtons = self:SpawnPlugin("BagBar", bagType)
 		if(bagButtons) then
@@ -222,14 +143,14 @@ local func = function(settings, self)
 			bagButtons:Hide()
 
 			-- main window gets a fake bag button for toggling key ring
-			if(self.Name == "cBags_Main") then
+			if(settings.Type == "main") then
 				local keytoggle = bagButtons:CreateKeyRingButton()
 				keytoggle:SetScript("OnClick", function()
-					if(cBags_Keyring:IsShown()) then
-						cBags_Keyring:Hide()
+					if(key:IsShown()) then
+						key:Hide()
 						keytoggle:SetChecked(0)
 					else
-						cBags_Keyring:Show()
+						key:Show()
 						keytoggle:SetChecked(1)
 					end
 				end)
@@ -264,7 +185,7 @@ local func = function(settings, self)
 	end
 
 	-- For purchasing bank slots
-	if(self.Name == "cBags_Bank") then
+	if(settings.Type == "bank") then
 		local purchase = self:SpawnPlugin("Purchase")
 		if(purchase) then
 			purchase:SetText(BANKSLOTPURCHASE)
@@ -294,10 +215,7 @@ local func = function(settings, self)
 	background:SetPoint("BOTTOMRIGHT", 6, -6)
 
 	return self
-end
-
--- Register the style with cargBags
-cargBags:RegisterStyle("Pernobilis", setmetatable({}, {__call = func}))
+end)
 
 -- Filter functions
 --   As you can see, these functions get the same item-table seen at the top in UpdateButton(self, button, item)
@@ -317,18 +235,35 @@ local hideEmpty = function(item) return item.texture ~= nil end
 --  object:SetFilter ( filterFunc, enabled ) adds a filter or disables one
 
 -- Bagpack and bags
-local main 	= cargBags:Spawn("cBags_Main")
+local main 	= cargBags:Spawn{
+		Movable = true,					-- Make it movable while holding ALT
+		Columns = 8,					-- Number of item columns
+		Scale = 1,						-- Scale of the frame
+		Caption = "%s's Inventory",		-- Disable to hide caption and close button
+		StatusBar = true,				-- Money and space display
+		Type = "main",					-- Include Anywhere-toggle
+	}
 	main:SetFilter(onlyBags, true)
 	main:SetPoint("RIGHT", -5, 0)
 
 -- Keyring
-local key = cargBags:Spawn("cBags_Keyring", main)
+key = cargBags:Spawn{
+		Parent = main,
+		Columns = 2,
+		Scale = 0.8,
+	}
 	key:SetFilter(onlyKeyring, true)
 	key:SetFilter(hideEmpty, true)
 	key:SetPoint("TOPRIGHT", main, "TOPLEFT", -10, 0)
 
 -- Bank frame and bank bags
-local bank = cargBags:Spawn("cBags_Bank")
+local bank = cargBags:Spawn{
+		Columns = 12,
+		Scale = 1,
+		Caption = "%s's Bank",
+		StatusBar = true,
+		Type = "bank"	-- Include Purchase-Bagslot-Button
+	}
 	bank:SetFilter(onlyBank, true)
 	bank:SetPoint("LEFT", 5, 0)
 

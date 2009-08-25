@@ -1,4 +1,7 @@
-cargBags_Pernobilis Changelog#
+cargBags_Pernobilis Changelog
+1.4
+- rewrite for core version 1.4
+
 1.1
 - included Anywhere support
 - fixed errors with 1.3 core
