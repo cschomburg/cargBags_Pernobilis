@@ -110,9 +110,9 @@ cargBags:RegisterStyle("Pernobilis", function(self, settings)
 		-- The font string for bag space display
 		local bagType
 		if(self.Type ~= "bank") then
-			bagType = "bags"	-- We want to add all bags to our space indicator
+			bagType = "backpack+bags"	-- We want to add all bags to our space indicator
 		else
-			bagType = "bank"	-- the bank gets bank bags, of course
+			bagType = "bankframe+bank"	-- the bank gets bank bags, of course
 		end
 		-- You can see, it works with tags, - [free], [max], [used] are currently supported
 		local space = self:SpawnPlugin("Space", "[free] / [max] free", bagType)
